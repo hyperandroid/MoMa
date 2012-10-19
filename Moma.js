@@ -112,6 +112,7 @@
         this.baseClass= obj.extends;
         this.aliases= obj.aliases;
         this.constants= obj.constants;
+        this.decorated= obj.decorated;
 
         this.children= [];
 
