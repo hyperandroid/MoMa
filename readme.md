@@ -81,8 +81,9 @@ Get the list in resolution order of the modules loaded by this ModuleManager.
 ##Module
 
 A module identifies a JavaScript file, and ideally, defines a Class. It is uniquely identified by its **defines** clause.
+There can be more than one module in a single file too.
 
-A module is created y calling:
+A module is created by calling:
 
 ```javascript
 MoMa.Module({
@@ -282,10 +283,10 @@ Class b extends a {
 }
 ```
 
-will be executed, which uglier, but extremely much faster.
+will be executed, which is uglier, but extremely much faster.
 
-A track for each synthesized class for **superclass** and **constructor** are being kept. That means that
-**speed over maintainability has been chosen**
+A track for each synthesized class for **superclass** and **constructor** are being kept. So
+**speed over maintainability can be chosen**.
 
 On the other hand, a developer can specify **decorated : true** in the module definition, which will cause every
 overriden method Class from the superclass to be using closured methods.
@@ -296,3 +297,45 @@ process for a given Class. This is the only closured by default method, and the 
 **this.__super(arg1, arg2, ...)** to chain constructor calls.
 
 ##Example
+
+These examples are from CAAT project: http://hyperandroid.github.com/CAAT
+
+A tipical MoMa usage is:
+
+```javascript
+CAAT.ModuleManager.
+    // set the loader base URL
+        baseURL("src/").
+
+    // set some resolution paths
+        setModulePath("CAAT.Core",              "Core").
+        setModulePath("CAAT.Math",              "Math").
+        setModulePath("CAAT.Behavior",          "Behavior").
+        setModulePath("CAAT.Foundation",        "Foundation").
+        setModulePath("CAAT.Event",             "Event").
+        setModulePath("CAAT.PathUtil",          "PathUtil").
+        setModulePath("CAAT.Module",            "Modules").
+        setModulePath("CAAT.Module.Preloader",  "Modules/Image/Preloader").
+        setModulePath("CAAT.WebGL",             "WebGL").
+
+    // get modules, and solve their dependencies.
+    // MoMa will end up loading many more modules than these.
+        bring(
+        [
+            "CAAT.PathUtil.Path",
+            "CAAT.Foundation.Director",
+            "CAAT.Foundation.Scene",
+            "CAAT.Foundation.UI.PathActor",
+            "CAAT.Foundation.UI.InterpolatorActor",
+            "CAAT.Foundation.UI.TextActor",
+            "CAAT.Foundation.UI.Dock",
+            "CAAT.Module.Preloader.Preloader"
+        ]).
+
+    // this function will be fired after all modules have been loaded and all dependencies have been solved.
+    // this may imply loading other module files and solving its dependencies as well.
+    // if you call bting again, this function could be re-fired.
+        onReady(function () {
+
+        });
+```
