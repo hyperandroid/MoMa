@@ -300,10 +300,10 @@ process for a given Class. This is the only closured by default method, and the 
 
 These examples are from CAAT project: http://hyperandroid.github.com/CAAT
 
-A tipical MoMa usage is:
+###MoMa.ModuleManager example.
 
 ```javascript
-CAAT.ModuleManager.
+MoMa.ModuleManager.
     // set the loader base URL
         baseURL("src/").
 
@@ -332,10 +332,125 @@ CAAT.ModuleManager.
             "CAAT.Module.Preloader.Preloader"
         ]).
 
-    // this function will be fired after all modules have been loaded and all dependencies have been solved.
-    // this may imply loading other module files and solving its dependencies as well.
+    // this function will be fired after all modules have been loaded and all dependencies
+    // have been solved.
+    // it may imply loading other module files and solving its dependencies as well.
     // if you call bting again, this function could be re-fired.
         onReady(function () {
 
         });
+```
+
+###MoMa.Module example
+
+This example assumes the module source files are located in a folder src/test.
+
+```javascript
+MoMa.Module({
+
+    defines : "Test.A",
+    extendsWith : {
+
+        // initialization function is called from the constructor.
+        __init : function( val ) {
+
+            if ( typeof val!=="undefined" ) {
+                this.val= val;
+            }
+        },
+
+        val : "test.a value",
+
+        getValue : function() {
+            return this.val;
+        }
+    }
+
+});
+```
+
+This will create a Class identified by **Test.A**.
+
+This Module could be retrieved for example with:
+
+```javascript
+MoMa.ModuleManager.
+
+    // assume Test.* files are under src/test folder
+    setModulePath( "Test", "src/test" ).
+
+    // load src/test/A.js file and define Test.A Class.
+    bring("Test.A").
+
+    // when
+    onReady(function() {
+
+        var v0= new Test.A();
+        var v1= new Test.A("new value");
+
+        v0.getValue();
+        // "test.a value"
+
+        v1.getValue();
+        // "new value"
+    });
+
+```
+
+###MoMa.Module Inheritance example
+
+To extend the previous **Test.A** example with new behavior, do something like the following:
+
+```javascript
+MoMa.Module({
+    defines : "Test.B",
+    depends : [
+        "Test.A"
+    ],
+    extends : "Test.A",
+    extendsWith : {
+        __init : function( val, val2 ) {
+            this.__super(val);
+            this.val2= val2;
+        },
+
+        val2 : "Test.B value",
+
+        getValue : function() {
+
+            // to reference superclass's getValue method, you must traverse and know which superclass
+            // has been defined for this class.
+            // you can set decorated:true in the Module definition as in BDecorated.js example and
+            // be able to access superclass method with this.__super().
+            // despite being more convenient for maintainability purposes, it is twice slower than using
+            // the superclass traversal.
+            return "superValue=" + Test.B.superclass.getValue.call(this)+ " value=" + this.val2;
+        }
+    }
+});
+
+MoMa.ModuleManager.
+
+    // assume Test.* files are under src/test folder
+    setModulePath( "Test", "src/test" ).
+
+    // load src/test/A.js file and define Test.A Class.
+    bring([
+        "Test.A",
+        "Test.B"
+    ]).
+
+    // when
+    onReady(function() {
+
+        var va= new Test.A("value for Class a");
+        var vb= new Test.B( "value for a", "value for b" );
+
+        va.getValue();
+        // "value for Class a"
+
+        vb.getValue();
+        // "superValue=value for Class a value=value for b"
+    });
+
 ```
