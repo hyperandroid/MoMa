@@ -1,22 +1,27 @@
-/**
- * See LICENSE file.
- */
-
 (function(global) {
 
     String.prototype.endsWith= function(suffix) {
         return this.indexOf(suffix, this.length - suffix.length) !== -1;
     };
 
-    function isArray(input) {
+    Function.prototype.bind = Function.prototype.bind || function () {
+                var fn = this;                                   // the function
+                var args = Array.prototype.slice.call(arguments);  // copy the arguments.
+                var obj = args.shift();                           // first parameter will be context 'this'
+                return function () {
+                    return fn.apply(
+                        obj,
+                        args.concat(Array.prototype.slice.call(arguments)));
+                }
+            };
+
+    isArray = function (input) {
         return typeof(input) == 'object' && (input instanceof Array);
     };
-
-    function isString(input) {
+    isString = function (input) {
         return typeof(input) == 'string';
     };
-
-    function isFunction( input ) {
+    isFunction = function( input ) {
         return typeof input == "function"
     }
 
@@ -38,7 +43,7 @@
         initializing = false;
 
         // The dummy class constructor
-        function MoMaClass() {
+        function CAATClass() {
             // All construction is actually done in the init method
             if (!initializing && this.__init) {
                 this.__init.apply(this, arguments);
@@ -46,18 +51,18 @@
         }
 
         // Populate our constructed prototype object
-        MoMaClass.prototype = prototype;
+        CAATClass.prototype = prototype;
         // Enforce the constructor to be what we expect
-        MoMaClass.prototype.constructor = MoMaClass;
-        MoMaClass.superclass = _super;
+        CAATClass.prototype.constructor = CAATClass;
+        CAATClass.superclass = _super;
         // And make this class extendable
-        MoMaClass.extend = Class.extend;
+        CAATClass.extend = Class.extend;
 
-        assignNamespace( name, MoMaClass );
+        assignNamespace( name, CAATClass );
         if ( constants ) {
             for( var constant in constants ) {
                 if ( constants.hasOwnProperty(constant) ) {
-                    MoMaClass[ constant ]= constants[constant];
+                    CAATClass[ constant ]= constants[constant];
                 }
             }
         }
@@ -68,7 +73,7 @@
             }
             for( var i=0; i<aliases.length; i++ ) {
                 ensureNamespace( aliases[i] );
-                var ns= assignNamespace( aliases[i], MoMaClass );
+                var ns= assignNamespace( aliases[i], CAATClass );
 
                 // assign constants to alias classes.
                 if ( constants ) {
@@ -100,7 +105,7 @@
                 extendingProt[fname];
         }
 
-        return MoMaClass;
+        return CAATClass;
     }
 
     var Node= function( obj ) { //name, dependencies, callback ) {
@@ -210,7 +215,7 @@
                 c= findClass( this.baseClass );
 
                 if ( !c ) {
-                    console.log("  Can't extend non-existant class: "+this.baseClass );
+                    console.log("  "+this.name+" -> Can't extend non-existant class: "+this.baseClass );
                     return;
                 }
 
@@ -300,6 +305,12 @@
 
             this.orderedSolvedModules.push( module );
 
+            this.notifyReady();
+        },
+
+        notifyReady : function() {
+            var i;
+
             for( i=0; i<this.nodes.length; i++ ) {
                 if ( !this.nodes[i].isSolved() ) {
                     return;
@@ -314,9 +325,18 @@
                 }
             }
 
-            for( var i=0; i<this.readyListener.length; i++ ) {
-                this.readyListener[i]();
-            }
+            /**
+             * Make ModuleManager.bring reentrant.
+             */
+            var me= this;
+            var arr= Array.prototype.slice.call(this.readyListener);
+            setTimeout( function() {
+                for( var i=0; i<arr.length; i++ ) {
+                    arr[i]();
+                }
+            }, 0 );
+
+            this.readyListener= [];
         },
 
         status : function() {
@@ -334,10 +354,10 @@
                 return this;
             }
 
-            if ( obj.onPreCreation ) {
+            if ( obj.onPreCreate ) {
 //                console.log("  --> "+obj.defines+" onPrecreation");
                 try {
-                    obj.onPreCreation();
+                    obj.onPreCreate();
                 } catch(e) {
                     console.log("  -> catched "+e+" on module "+obj.defines+" preCreation.");
                 }
@@ -455,7 +475,7 @@
             node.addEventListener('load', this.moduleLoaded.bind(this), false);
             node.addEventListener('error', this.moduleErrored.bind(this), false);
             node.setAttribute('module-name', module);
-            node.src = path+"?"+(new Date().getTime());
+            node.src = path+(DEBUG ? "?"+(new Date().getTime()) : "");
 
             document.getElementsByTagName('head')[0].appendChild( node );
 
@@ -496,6 +516,10 @@
 
                         /**
                          * Avoid name clash:
+                         * MoMa.Foundation and MoMa.Foundation.Timer will both be valid for
+                         * MoMa.Foundation.Timer.TimerManager module.
+                         * So in the end, the module name can't have '.' after chopping the class
+                         * namespace.
                          */
 
                         nmodule= nmodule.replace(/\./g,"/");
@@ -537,7 +561,6 @@
 
                 for( var i=0; i<this.nodes.length; i++ ) {
                     this.nodes[i].removeDependency( mod );
-
                 }
 
                 for( var i=0; i<this.nodes.length; i++ ) {
@@ -547,6 +570,16 @@
                     this.nodes[i].solveDeep();
                 }
 
+                /**
+                 * Despues de cargar un fichero, este puede contener un modulo o no.
+                 * Si todos los ficheros que se cargan fueran bibliotecas, nunca se pasaria de aqui porque
+                 * no se hace una llamada a solveDeep, y notificacion a solved, y de ahí a notifyReady.
+                 * Por eso se hace aqui una llamada a notifyReady, aunque pueda ser redundante.
+                 */
+                var me= this;
+                setTimeout(function() {
+                    me.notifyReady();
+                }, 0 );
             }
         },
 
@@ -624,8 +657,9 @@
     }
 
     var mm= new ModuleManager();
+    var DEBUG= false;
 
-    global.MoMa = global.MoMa || {};
+    global.MoMa= global.MoMa || {};
 
     /**
      *
@@ -703,7 +737,7 @@
     }
 
     MoMa.ModuleManager.addModuleSolvedListener= function(modulename,callback) {
-        mm.addSolvedListener( modulename, callback );
+        mm.addSolveListener( modulename, callback );
         return MoMa.ModuleManager;
     }
 
@@ -723,7 +757,7 @@
             mm.solveAll();
         }, false);
 
-        node.src = file+"?"+(new Date().getTime());
+        node.src = file+(DEBUG ? "?"+(new Date().getTime()) : "");
 
         document.getElementsByTagName('head')[0].appendChild( node );
 
@@ -737,10 +771,16 @@
 
     MoMa.ModuleManager.onReady= function(f) {
         mm.onReady(f);
+        return MoMa.ModuleManager;
     }
 
     MoMa.ModuleManager.solveAll= function() {
         mm.solveAll();
+    }
+
+    MoMa.ModuleManager.debug= function(d) {
+        DEBUG= d;
+        return MoMa.ModuleManager;
     }
 
 })(this);

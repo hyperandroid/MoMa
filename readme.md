@@ -1,3 +1,11 @@
+10/22/2012
+----------
+
++ Added reentrant onReady functions.
++ Made the system able to load only javascript library files.
+
+
+
 #MoMa - A Javascript Module and Class Manager.
 
 MoMa (Module Manager) is a general dependency solver and symbol creator for javascript.
@@ -5,15 +13,22 @@ A module, ideally identifies one JavaScript file, and one symbol Class.
 MoMa has the following features:
 
 * Solves very deep transitive dependencies.
-* Supports bundled files (all files concatenaded for production environments)
-* Supports single file retrieval (get file by file for testing environments)
+* Bundled files (all files concatenaded for production environments)
+* Single file retrieval (get file by file for testing environments)
+* Only javascript files loading
+* Load Mixing of JavaScript file libraries and Modules loading
+* Reentrant notification points.
 * It does not pollute global namespace.
 * Based on John Resig's Class pattern.
 
 ##MoMa.ModuleManager
 
-The MoMaModuleManager object is the entry point to modules definition. It is responsible for loading modules,
+The MoMa ModuleManager object is the entry point to modules definition. It is responsible for loading modules,
 solving dependencies, notify callback observers about modules being solved, loading libraries, etc.
+
+The ModuleManager will make dependencies on Class files, and not file names, making the loader a consistent Class
+object and hierarchy manager. It is expected that one JavaScript module file will contain at least a symbol equal
+to the module name.
 
 MoMa.ModuleManager has the following functions:
 
@@ -49,6 +64,7 @@ src/Foundation.UI.Label.
 This functions loads all the modules or libraries specified.
 Modules are loaded and solved on the fly, while .js files, are simply loaded.
 When **MoMa** ends loading and solving all files/modules, it notifies via callback to MoMa's **onReady** function.
+**The onReady function, when invoked, will remove all onReady observers.**
 
 This function loads a file if the array value ends with **js**, or tries to load a module otherwise.
 
