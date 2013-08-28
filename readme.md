@@ -1,3 +1,11 @@
+08/28/2013
+----------
+
+* Modified Module definition 'extend' clause in favour of 'extendsClass'.
+* Added optional.
+* Fixed samples to show extendsClass call.
+
+
 10/22/2012
 ----------
 
@@ -105,7 +113,7 @@ A module is created by calling:
 MoMa.Module({
   defines : "a.qualified.class.name",
   aliases : ["qualified.name", "qualified.name", ... ],
-  extends : "a.qualified.class.name.to.extend",
+  extendsClass : "a.qualified.class.name.to.extend",
   depends : ["a.qualified.class", "another.qualified.class", ... ],
   constants : {
     aconstant : 5,
@@ -176,7 +184,7 @@ CAAT.Module.Actor.c2= 'a'
 
 This block is optional.
 
-###extends : {string}
+###extendsClass : {string}
 
 This block causes the synthesized class to extend the module Class identified by the string.
 It must be a module either defined in the **depends** block, or already loaded by another module dependencies.
@@ -423,7 +431,7 @@ MoMa.Module({
     depends : [
         "Test.A"
     ],
-    extends : "Test.A",
+    extendsClass : "Test.A",
     extendsWith : {
         __init : function( val, val2 ) {
             this.__super(val);
@@ -470,3 +478,12 @@ MoMa.ModuleManager.
     });
 
 ```
+
+Also a call to:
+
+```javascript
+<some_object_created_with_MoMa>.extend( extendingProt, constants, name );
+```
+
+will immediately extend the symbol with a new prototype, constants, and will be placed in the global namespace under the
+'name' parameter.

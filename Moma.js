@@ -1,4 +1,4 @@
-(function(global) {
+(function(global, __obj_namespace) {
 
     String.prototype.endsWith= function(suffix) {
         return this.indexOf(suffix, this.length - suffix.length) !== -1;
@@ -15,13 +15,13 @@
                 }
             };
 
-    isArray = function (input) {
+    global.isArray = function (input) {
         return typeof(input) == 'object' && (input instanceof Array);
     };
-    isString = function (input) {
+    global.isString = function (input) {
         return typeof(input) == 'string';
     };
-    isFunction = function( input ) {
+    global.isFunction = function( input ) {
         return typeof input == "function"
     }
 
@@ -30,6 +30,8 @@
     // The base Class implementation (does nothing)
     var Class = function () {
     };
+
+    Class['__CLASS']='Class';
 
     // Create a new Class that inherits from this class
     Class.extend = function (extendingProt, constants, name, aliases, flags) {
@@ -43,7 +45,7 @@
         initializing = false;
 
         // The dummy class constructor
-        function CAATClass() {
+        function __CLASS__() {
             // All construction is actually done in the init method
             if (!initializing && this.__init) {
                 this.__init.apply(this, arguments);
@@ -51,21 +53,24 @@
         }
 
         // Populate our constructed prototype object
-        CAATClass.prototype = prototype;
+        __CLASS__.prototype = prototype;
         // Enforce the constructor to be what we expect
-        CAATClass.prototype.constructor = CAATClass;
-        CAATClass.superclass = _super;
+        __CLASS__.prototype.constructor = __CLASS__;
+        __CLASS__.superclass = _super;
         // And make this class extendable
-        CAATClass.extend = Class.extend;
+        __CLASS__.extend = Class.extend;
 
-        assignNamespace( name, CAATClass );
+        assignNamespace( name, __CLASS__ );
         if ( constants ) {
+            constants= (isFunction(constants) ? constants() : constants);
             for( var constant in constants ) {
                 if ( constants.hasOwnProperty(constant) ) {
-                    CAATClass[ constant ]= constants[constant];
+                    __CLASS__[ constant ]= constants[constant];
                 }
             }
         }
+
+        __CLASS__["__CLASS"]= name;
 
         if ( aliases ) {
             if ( !isArray(aliases) ) {
@@ -73,7 +78,7 @@
             }
             for( var i=0; i<aliases.length; i++ ) {
                 ensureNamespace( aliases[i] );
-                var ns= assignNamespace( aliases[i], CAATClass );
+                var ns= assignNamespace( aliases[i], __CLASS__ );
 
                 // assign constants to alias classes.
                 if ( constants ) {
@@ -91,7 +96,10 @@
         // Copy the properties over onto the new prototype
         for (var fname in extendingProt) {
             // Check if we're overwriting an existing function
-            prototype[fname] = ( (fname === "__init" || (flags && flags.decorated) ) && isFunction(extendingProt[fname]) && isFunction(_super[fname]) ) ?
+            prototype[fname] = ( (fname === "__init" ||
+                        (flags && flags.decorated) ) &&
+                        isFunction(extendingProt[fname]) &&
+                        (this===Class || isFunction(_super[fname]) ) ) ?
                 (function (name, fn) {
                     return function () {
                         var tmp = this.__super;
@@ -105,7 +113,7 @@
                 extendingProt[fname];
         }
 
-        return CAATClass;
+        return __CLASS__;
     }
 
     var Node= function( obj ) { //name, dependencies, callback ) {
@@ -114,7 +122,7 @@
         this.callback= obj.onCreate;
         this.callbackPreCreation= obj.onPreCreate;
         this.dependencies= obj.depends;
-        this.baseClass= obj.extends;
+        this.baseClass= obj.extendsClass;
         this.aliases= obj.aliases;
         this.constants= obj.constants;
         this.decorated= obj.decorated;
@@ -219,21 +227,11 @@
                     return;
                 }
 
-                c= c.extend(
-                    this.extendWith,
-                    this.constants,
-                    this.name,
-                    this.aliases,
-                    { decorated : this.decorated } );
-
             } else {
-                c= Class.extend(
-                    this.extendWith,
-                    this.constants,
-                    this.name,
-                    this.aliases,
-                    { decorated : this.decorated } );
+                c= Class;
             }
+
+            c= c.extend( this.extendWith, this.constants, this.name, this.aliases, { decorated : this.decorated } );
 
             console.log("Created module: "+this.name);
 
@@ -278,6 +276,7 @@
     ModuleManager.baseURL= "";
     ModuleManager.modulePath= {};
     ModuleManager.sortedModulePath= [];
+    ModuleManager.symbol= {};
 
     ModuleManager.prototype= {
 
@@ -397,7 +396,6 @@
             /**
              * Making dependency resolution a two step process will allow us to pack all modules into one
              * single file so that the module manager does not have to load external files.
-             * Useful when MoMa has been packed into one single bundle.
              */
 
             /**
@@ -454,7 +452,27 @@
             return false;
         },
 
+        exists : function(path) {
+            var path= path.split(".");
+            var root= global;
+
+            for( var i=0; i<path.length; i++ ) {
+                if (!root[path[i]]) {
+                    return false;
+                }
+
+                root= root[path[i]];
+            }
+
+            return true;
+        },
+
         loadFile : function( module ) {
+
+
+            if (this.exists(module)) {
+                return;
+            }
 
             var path= this.getPath( module );
 
@@ -475,7 +493,7 @@
             node.addEventListener('load', this.moduleLoaded.bind(this), false);
             node.addEventListener('error', this.moduleErrored.bind(this), false);
             node.setAttribute('module-name', module);
-            node.src = path+(DEBUG ? "?"+(new Date().getTime()) : "");
+            node.src = path+(!DEBUG ? "?"+(new Date().getTime()) : "");
 
             document.getElementsByTagName('head')[0].appendChild( node );
 
@@ -502,8 +520,16 @@
                 return module;
             }
 
+            var i, symbol;
+
+            for( symbol in ModuleManager.symbol ) {
+                if ( module===symbol ) {
+                    return  ModuleManager.baseURL + ModuleManager.symbol[symbol];
+                }
+            }
+
             //for( var modulename in ModuleManager.modulePath ) {
-            for( var i=0; i<ModuleManager.sortedModulePath.length; i++ ) {
+            for( i=0; i<ModuleManager.sortedModulePath.length; i++ ) {
                 var modulename= ModuleManager.sortedModulePath[i];
 
                 if ( ModuleManager.modulePath.hasOwnProperty(modulename) ) {
@@ -516,8 +542,6 @@
 
                         /**
                          * Avoid name clash:
-                         * MoMa.Foundation and MoMa.Foundation.Timer will both be valid for
-                         * MoMa.Foundation.Timer.TimerManager module.
                          * So in the end, the module name can't have '.' after chopping the class
                          * namespace.
                          */
@@ -533,7 +557,7 @@
             }
 
             // what's that ??!?!?!?
-            return module;
+            return ModuleManager.baseURL + module.replace(/\./g,"/") + ".js";
         },
 
         isModuleScheduledToSolve : function( name ) {
@@ -548,7 +572,7 @@
         moduleLoaded : function(e) {
             if (e.type==="load") {
 
-                var node = e.currentTarget || e.srcElement;
+                var node = e.currentTarget || e.srcElement || e.target;
                 var mod= node.getAttribute("module-name");
 
                 // marcar fichero de modulo como procesado.
@@ -606,15 +630,32 @@
 
     };
 
+    function ensureFullNamespace( qualifiedClassName ) {
+        return __ensureNamespace( qualifiedClassName, 0 );
+    }
+
     function ensureNamespace( qualifiedClassName ) {
+        return __ensureNamespace( qualifiedClassName, 1 );
+    }
+
+    function __ensureNamespace( qualifiedClassName, len ) {
+
+        if (!qualifiedClassName) {
+            return undefined;
+        }
+
         var ns= qualifiedClassName.split(".");
         var _global= global;
-        for( var i=0; i<ns.length-1; i++ ) {
+        var ret= null;
+        for( var i=0; i<ns.length-len; i++ ) {
             if ( !_global[ns[i]] ) {
                 _global[ns[i]]= {};
             }
             _global= _global[ns[i]];
+            ret= _global;
         }
+
+        return ret;
     }
 
     /**
@@ -659,21 +700,27 @@
     var mm= new ModuleManager();
     var DEBUG= false;
 
-    global.MoMa= global.MoMa || {};
+    __obj_namespace= __obj_namespace || "MoMa";
+    __obj_namespace= ensureFullNamespace( __obj_namespace );
+    var NS= __obj_namespace;
 
     /**
      *
-     * @param obj {
-     *   defines{string},             // class name
+     * obj parameter has the following structure:
+     * {
+     *   defines{string},           // class name
      *   depends{Array<string>=},   // dependencies class names
-     *   extendsClass{string},            // class to extend from
-     *   extensdWith{object},        // actual prototype to extend
-     *   aliases{Array<string>},    // other class names
-     *   onCreation{function=}        // optional callback to call after class creation.
-     *   onPreCreation{function=}        // optional callback to call after namespace class creation.
+     *   extendsClass{string},      // class to extend from
+     *   extensdWith{object},       // actual prototype to extend
+     *   aliases{Array<string>}     // other class names
      * }
+     *
+     * @name Module
+     * @static
+     *
+     * @param obj {object}
      */
-    MoMa.Module= function loadModule(obj) {
+    NS.Module= function loadModule(obj) {
 
         if (!obj.defines) {
             console.error("Bad module definition: "+obj);
@@ -686,12 +733,21 @@
 
     };
 
-    MoMa.ModuleManager= {};
+    /**
+     * @name ModuleManager
+     * @namespace
+     */
+    NS.ModuleManager= {};
 
-    MoMa.ModuleManager.baseURL= function(baseURL) {
+    /**
+     * Define global base position for modules structure.
+     * @param baseURL {string}
+     * @return {*}
+     */
+    NS.ModuleManager.baseURL= function(baseURL) {
 
         if ( !baseURL ) {
-            return MoMa.Module;
+            return NS.Module;
         }
 
         if (!baseURL.endsWith("/") ) {
@@ -699,10 +755,15 @@
         }
 
         ModuleManager.baseURL= baseURL;
-        return MoMa.ModuleManager;
+        return NS.ModuleManager;
     };
 
-    MoMa.ModuleManager.setModulePath= function( module, path ) {
+    /**
+     * Define a module path. Multiple module paths can be specified.
+     * @param module {string}
+     * @param path {string}
+     */
+    NS.ModuleManager.setModulePath= function( module, path ) {
 
         if ( !path.endsWith("/") ) {
             path= path + "/";
@@ -712,14 +773,38 @@
             ModuleManager.modulePath[ module ]= path;
 
             ModuleManager.sortedModulePath.push( module );
+
             ModuleManager.sortedModulePath.sort( function(a,b) {
-                return a<b;
+                if (a==b) {
+                    return 0;
+                }
+                return a<b ? 1 : -1;
             } );
         }
-        return MoMa.ModuleManager;
+        return NS.ModuleManager;
     };
 
-    MoMa.ModuleManager.bring= function( file ) {
+    /**
+     * Define a symbol, or file to be loaded and checked dependencies against.
+     * @param symbol {string}
+     * @param path {string}
+     * @return {*}
+     */
+    NS.ModuleManager.symbol= function( symbol, path ) {
+
+        if ( !ModuleManager.symbol[symbol] ) {
+            ModuleManager.symbol[symbol]= path;
+        }
+
+        return NS.ModuleManager;
+    };
+
+    /**
+     * Bring the given object, and if no present, start solving and loading dependencies.
+     * @param file {string}
+     * @return {*}
+     */
+    NS.ModuleManager.bring= function( file ) {
 
         if ( !isArray(file) ) {
             file= [file];
@@ -729,19 +814,31 @@
             mm.loadFile( file[i] );
         }
 
-        return MoMa.ModuleManager;
+        return NS.ModuleManager;
     };
 
-    MoMa.ModuleManager.status= function() {
+    NS.ModuleManager.status= function() {
         mm.status();
     }
 
-    MoMa.ModuleManager.addModuleSolvedListener= function(modulename,callback) {
+    /**
+     * Add an observer for a given module load event.
+     * @param modulename {string}
+     * @param callback {function()}
+     * @return {*}
+     */
+    NS.ModuleManager.addModuleSolvedListener= function(modulename,callback) {
         mm.addSolveListener( modulename, callback );
-        return MoMa.ModuleManager;
+        return NS.ModuleManager;
     }
 
-    MoMa.ModuleManager.load= function(file, onload, onerror) {
+    /**
+     * Load a javascript file.
+     * @param file {string}
+     * @param onload {function()}
+     * @param onerror {function()}
+     */
+    NS.ModuleManager.load= function(file, onload, onerror) {
         var node= document.createElement("script");
         node.type = 'text/javascript';
         node.charset = 'utf-8';
@@ -757,7 +854,7 @@
             mm.solveAll();
         }, false);
 
-        node.src = file+(DEBUG ? "?"+(new Date().getTime()) : "");
+        node.src = file+(!DEBUG ? "?"+(new Date().getTime()) : "");
 
         document.getElementsByTagName('head')[0].appendChild( node );
 
@@ -765,22 +862,46 @@
 
     }
 
-    MoMa.ModuleManager.solvedInOrder= function() {
+    /**
+     * Dump solved modules and get them sorted in the order they were resolved.
+     */
+    NS.ModuleManager.solvedInOrder= function() {
         mm.solvedInOrder();
     }
 
-    MoMa.ModuleManager.onReady= function(f) {
+    /**
+     * This method will be called everytime all the specified to-be-brought dependencies have been solved.
+     * @param f
+     * @return {*}
+     */
+    NS.ModuleManager.onReady= function(f) {
         mm.onReady(f);
-        return MoMa.ModuleManager;
+        return NS.ModuleManager;
     }
 
-    MoMa.ModuleManager.solveAll= function() {
+    /**
+     * Solve all elements specified in the module loaded.
+     * It is useful when minimizing a file.
+     */
+    NS.ModuleManager.solveAll= function() {
         mm.solveAll();
     }
 
-    MoMa.ModuleManager.debug= function(d) {
+    /**
+     * Enable debug capabilities for the loaded modules.
+     * Otherwise, the modules will have cache invalidation features.
+     * @param d {boolean}
+     * @return {*}
+     */
+    NS.ModuleManager.debug= function(d) {
         DEBUG= d;
-        return MoMa.ModuleManager;
+        return NS.ModuleManager;
     }
 
-})(this);
+    /**
+     * @name Class
+     * @constructor
+     */
+    NS.Class= Class;
+
+})(this, "MoMa", undefined);

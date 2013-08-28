@@ -3,7 +3,7 @@ MoMa.Module({
     depends : [
         "Test.A"
     ],
-    extends : "Test.A",
+    extendsClass : "Test.A",
     extendsWith : {
         __init : function( val, val2 ) {
             this.__super(val);
