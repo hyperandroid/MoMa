@@ -34,7 +34,7 @@
     Class['__CLASS']='Class';
 
     // Create a new Class that inherits from this class
-    Class.extend = function (extendingProt, constants, name, aliases, flags) {
+    Class.extend = function (name, extendingProt, constants, aliases, flags) {
 
         var _super = this.prototype;
 
@@ -200,7 +200,6 @@
                 return false;
             }
 
-            var b= true;
             for( var i=0; i<this.children.length; i++ ) {
                 if (! this.children[i].solveDeep() ) {
                     return false;
@@ -231,7 +230,7 @@
                 c= Class;
             }
 
-            c= c.extend( this.extendWith, this.constants, this.name, this.aliases, { decorated : this.decorated } );
+            c.extend( this.name, this.extendWith, this.constants, this.aliases, { decorated : this.decorated } );
 
             console.log("Created module: "+this.name);
 
