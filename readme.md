@@ -1,3 +1,11 @@
+
+08/28/2013
+----------
+
+* Added 'injectTo' on modules for add code in other class like a plugin system.
+* Added new example (sample_plugins.html) in /test folder.
+
+
 08/28/2013
 ----------
 
@@ -202,6 +210,13 @@ This is an inheritance pattern, where the base module is extended and a new Clas
 
 Instrument the synthesized Class object to be decorated with closured __super methods.
 See **Synthesized Class - A disgression on style.**
+
+
+###injectTo : {string}
+
+Inject code in other classes like a plugin, to provide extra functionalities without altering the original code.  
+
+This block is optional.
 
 
 ##Module resolution
@@ -486,4 +501,80 @@ Also a call to:
 ```
 
 will immediately extend the symbol with a new prototype, constants, and will be placed in the global namespace under the
-'name' parameter.
+'name' parameter.  
+
+###MoMa.Module plugin example  
+
+General menu with File, Edit and Find elements.
+
+```javascript
+    MoMa.Module({
+
+        defines : "Test.Menu",
+        extendsWith : {
+
+            //Menu elements
+            elements : [
+                'File',
+                'Edit',
+                'Find'
+            ],
+
+            __init : function() {
+
+            },
+
+            getElements : function(){
+                return JSON.stringify(this.elements);
+            }
+        }
+
+    });
+
+```
+
+Add the Help menu to Test.Menu class
+
+```javascript
+    MoMa.Module({
+        injectTo : "Test.Menu",
+        defines : "Plugin.HelpMenu",
+        extendsWith : {
+
+            __init : function() {
+                this.__super();
+
+                //Add a Help menu
+                var elem = "Help";
+                if(this.elements.indexOf(elem) === -1) this.elements.push('Help');
+            }
+
+        }
+
+    });
+
+```
+
+```javascript
+  MoMa.ModuleManager.
+
+    setModulePath( "Test", "js" ).
+    setModulePath( "Plugin", "js/plugins").
+
+    bring([
+        "Test.Menu",
+        "Plugin.HelpMenu", //Add Help menu
+        "Plugin.OpenMenu" //Add method to open menu elements
+    ]).
+
+    onReady(function() {
+
+        //Create a menu
+        var menu = new Test.Menu();
+
+        //Print in console the menu elements
+        console.log(menu.getElements()); //["File","Edit","Find","Help"] 
+
+    });
+
+```

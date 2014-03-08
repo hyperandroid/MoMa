@@ -126,6 +126,7 @@
         this.aliases= obj.aliases;
         this.constants= obj.constants;
         this.decorated= obj.decorated;
+        this.injectTo= obj.injectTo;
 
         this.children= [];
 
@@ -141,6 +142,7 @@
         baseClass:      null,
         aliases:        null,
         constants:      null,
+        injectTo:       null,   
 
         decorated:      false,
 
@@ -217,6 +219,13 @@
 
         __initModule : function() {
 
+            var msg = "Created module: " + this.name;
+            if(this.injectTo){
+                msg = "Injected " + this.name + " in module " + this.injectTo;
+                this.baseClass = this.injectTo;
+                this.name = this.injectTo;
+            }
+
             var c= null;
             if ( this.baseClass ) {
                 c= findClass( this.baseClass );
@@ -232,7 +241,7 @@
 
             c.extend( this.name, this.extendWith, this.constants, this.aliases, { decorated : this.decorated } );
 
-            console.log("Created module: "+this.name);
+            console.log(msg);
 
             if ( this.callback ) {
                 this.callback();
@@ -363,6 +372,10 @@
 
             if (!obj.depends ) {
                 obj.depends= [];
+            }
+
+            if(obj.injectTo){
+                if(obj.depends.indexOf(obj.injectTo) === -1) obj.depends.push(obj.injectTo);
             }
 
             var dependencies= obj.depends;

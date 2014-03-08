@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+<script src="../Moma.js"></script>
+<script>
+    MoMa.ModuleManager.
+
+        setModulePath( "Test", "js" ).
+        setModulePath( "Plugin", "js/plugins").
+
+        bring([
+            "Test.Menu",
+            "Plugin.HelpMenu", //Add Help menu
+            "Plugin.OpenMenu" //Add method to open menu elements
+        ]).
+
+        onReady(function() {
+
+            //Create a menu
+            var menu = new Test.Menu();
+
+            //Print in console the menu elements
+            console.log(menu.getElements());
+
+            //Open the menu with the plugin method added
+            menu.open("File"); //Native element menu
+            menu.open("Help"); //Added element menu
+
+        });
+</script>
+</body>
+</html>
