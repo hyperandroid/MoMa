@@ -1,5 +1,5 @@
 
-08/28/2013
+03/08/2014
 ----------
 
 * Added 'injectTo' on modules for add code in other class like a plugin system.
@@ -563,8 +563,7 @@ Add the Help menu to Test.Menu class
 
     bring([
         "Test.Menu",
-        "Plugin.HelpMenu", //Add Help menu
-        "Plugin.OpenMenu" //Add method to open menu elements
+        "Plugin.HelpMenu" //Add Help menu
     ]).
 
     onReady(function() {
